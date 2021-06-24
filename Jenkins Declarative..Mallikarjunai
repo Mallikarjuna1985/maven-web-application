@@ -1,0 +1,56 @@
+pipeline{
+agent any
+triggers{
+pollSCM('* * * * *')
+}
+options{
+timestamps()    
+buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5'))
+}
+tools{
+maven "3.8.1"
+}
+stages{
+stage('checkoutcode'){
+steps{
+git branch: 'development', credentialsId: '837cfd50-da2c-47be-b4a8-790f8584abbc', poll: false, url: 'https://github.com/Mallikarjuna1985/maven-web-application.git'
+}
+}
+stage('build'){
+steps{
+sh "mvn clean package"
+}
+}
+stage('excecutesonarqubereport'){
+steps{
+sh "mvn clean sonar:sonar"
+}
+}
+stage('uploadartifactsintonexus'){
+steps{
+sh "mvn clean deploy"
+}
+}
+stage('Deployappinto Tomcat server'){
+steps{
+sshagent(['ee63a6de-381b-4ecf-b95d-4b00ef3cece5']) {
+  sh  "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@13.58.138.38:/opt/apache-tomcat-9.0.46/webapps"
+}
+}
+}
+}//stages closing
+post{
+   success{
+   emailext body: '''Build is over.....-success!!
+
+Regards,
+Mallikarjuna.M''', subject: 'Build is over-success', to: 'mallikarjun.sanna@gmail.com'
+}
+ failure{
+   emailext body: '''Build is over.....-failed!!
+
+Regards,
+Mallikarjuna.M''', subject: 'Build is over-failed', to: 'mallikarjun.sanna@gmail.com'
+ }
+}
+}//pipeline closing
